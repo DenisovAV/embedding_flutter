@@ -1,5 +1,7 @@
 package dev.flutter.moviesandroid
 
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,11 +33,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.flutter.moviesandroid.ui.theme.Movies_androidTheme
 import io.flutter.embedding.android.FlutterView
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 class MainActivity : ComponentActivity(), EngineBindingsDelegate {
 
-    private lateinit var flutterViewEngine: FlutterViewEngine
-    private lateinit var flutterViewEngine2: FlutterViewEngine
+    private lateinit var showMoviesScreenEngine: FlutterViewEngine
+    private lateinit var showMoviesDetailsEngine: FlutterViewEngine
+    private lateinit var sink: EventChannel.EventSink
 
     private val moviesBindings: EngineBindings by lazy {
         EngineBindings(activity = this, delegate = this, entrypoint = "showMoviesScreen")
@@ -48,11 +58,33 @@ class MainActivity : ComponentActivity(), EngineBindingsDelegate {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        flutterViewEngine = FlutterViewEngine(moviesBindings.engine)
-        flutterViewEngine.attachToActivity(this)
+        showMoviesScreenEngine = FlutterViewEngine(moviesBindings.engine)
+        showMoviesScreenEngine.attachToActivity(this)
 
-        flutterViewEngine2 = FlutterViewEngine(detailsBindings.engine)
-        flutterViewEngine2.attachToActivity(this)
+        showMoviesDetailsEngine = FlutterViewEngine(detailsBindings.engine)
+        showMoviesDetailsEngine.attachToActivity(this)
+
+        MethodChannel(showMoviesScreenEngine.engine.dartExecutor.binaryMessenger, "OPEN").setMethodCallHandler {
+                call, result ->
+            if (call.method == "CALL") {
+                val name = call.argument<String>("NAME")
+                sink.success(name)
+            } else {
+                result.notImplemented()
+            }
+        }
+
+        EventChannel(showMoviesDetailsEngine.engine.dartExecutor, "MOVIES").setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(args: Any?, events: EventChannel.EventSink) {
+                    sink = events
+                }
+
+                override fun onCancel(args: Any?) {
+                    sink.endOfStream()
+                }
+            }
+        )
 
         setContent {
             Movies_androidTheme() {
@@ -61,7 +93,7 @@ class MainActivity : ComponentActivity(), EngineBindingsDelegate {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    EmbeddingAndroidComposable(flutterViewEngine, flutterViewEngine2)
+                    EmbeddingAndroidComposable(showMoviesScreenEngine, showMoviesDetailsEngine)
                 }
             }
         }

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:movies_flutter_module/business/movies_bloc.dart';
 import 'package:movies_flutter_module/ui/widgets/movie_details.dart';
 import 'package:movies_flutter_module/ui/widgets/movie_grid.dart';
-import 'package:movies_flutter_module/ui/widgets/platform.dart';
 
 class MoviesCard extends StatefulWidget {
   const MoviesCard({required int index, Key? key}) : super(key: key);
@@ -11,7 +10,6 @@ class MoviesCard extends StatefulWidget {
   @override
   State<StatefulWidget> createState() => _MoviesScreenState();
 }
-
 
 class MoviesScreen extends StatefulWidget {
   const MoviesScreen({Key? key}) : super(key: key);
@@ -21,18 +19,6 @@ class MoviesScreen extends StatefulWidget {
 }
 
 class _MoviesScreenState extends State<MoviesScreen> {
-  Widget _buildTitle() {
-    return const Center(
-      child: Text(
-        'Movies',
-        style: TextStyle(
-          fontSize: 50,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final moviesScreen = Column(
@@ -44,7 +30,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
       ],
     );
     return Scaffold(
-      body: MyPlatform.isTv ? moviesScreen : SafeArea(child: moviesScreen),
+      body: SafeArea(child: moviesScreen),
     );
   }
 }
@@ -62,9 +48,7 @@ class MoviesGrid extends StatelessWidget {
           return MovieGridWidget(
             movies: state.movies,
             onTapMovie: (movie) =>
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                  return MovieDetailsWidget(movie: movie);
-                })),
+                context.read<MoviesBloc>().add(MoviesOpenDetailsEvent(movie: movie)),
           );
         } else {
           return const Center(
@@ -84,14 +68,15 @@ class MoviesDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<MoviesBloc, MoviesState>(builder: (context, state) {
-        if (state is MoviesLoadedState) {
-          return  MovieDetailsWidget(movie: state.movies[0]);
-        } else {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-      });
+      switch (state) {
+        case MoviesLoadedState _:
+          return MovieDetailsWidget(movie: state.movies[0]);
+        case MoviesOpenedState movie:
+          return MovieDetailsWidget(movie: movie.movie);
+      }
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    });
   }
 }
-

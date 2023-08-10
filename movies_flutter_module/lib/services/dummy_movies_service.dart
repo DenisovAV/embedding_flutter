@@ -12,4 +12,13 @@ class DummyMoviesService implements MoviesService {
             .then((movies) => json.decode(movies)))
         .movies;
   }
+
+  @override
+  Future<Movie> getMovie(String name) async {
+    final list = MoviesList.fromJson(await rootBundle
+            .loadString('assets/service.json')
+            .then((movies) => json.decode(movies)))
+        .movies;
+    return list.firstWhere((element) => element.name == name);
+  }
 }
